@@ -3,15 +3,9 @@ package File::Iterator;
 use 5.005;
 use strict;
 use Carp;
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+use vars qw($VERSION);
 
-require Exporter;
-
-@ISA          = qw( Exporter );
-%EXPORT_TAGS  = ( 'all' => [ qw() ] );
-@EXPORT_OK    = ( @{ $EXPORT_TAGS{'all'} } );
-@EXPORT       = qw( );
-$VERSION      = '0.08';
+$VERSION = '0.09';
 
 sub new {
 	my $proto = shift;
