@@ -11,7 +11,7 @@ require Exporter;
 %EXPORT_TAGS  = ( 'all' => [ qw() ] );
 @EXPORT_OK    = ( @{ $EXPORT_TAGS{'all'} } );
 @EXPORT       = qw( );
-$VERSION      = '0.07';
+$VERSION      = '0.08';
 
 sub new {
 	my $proto = shift;
@@ -45,7 +45,7 @@ sub _isRootDir {
 sub _probeDir {
 	my $self = shift;
 	my $dir = shift;
-	my $slash = _isRootDir($dir) ? "" : $^O =~ /Win/i ? "\\" : "/";
+	my $slash = _isRootDir($dir) ? "" : $^O =~ /(?<!dar)win/i ? "\\" : "/";
 
 	if (opendir DIR, $dir) {
 		my @files = grep { !/^\.{1,2}$/ } readdir DIR; # ignore . and ..
