@@ -11,74 +11,80 @@ require Exporter;
 %EXPORT_TAGS  = ( 'all' => [ qw() ] );
 @EXPORT_OK    = ( @{ $EXPORT_TAGS{'all'} } );
 @EXPORT       = qw( );
-$VERSION      = '0.06';
+$VERSION      = '0.07';
 
 sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = {};
 	$self->{ARGS} = {
-		DIR		=> '.',
-		RECURSE	=> 1,
-		FILTER	=> '',
+		DIR				=> '.',
+		RECURSE			=> 1,
+		FILTER			=> undef,
+		RETURNDIRS		=> 0,
+		FOLLOWSYMLINKS	=> 0,
 		@_
 	};
 	
-	if ($self->{ARGS}{FILTER}) {
-		# convert file filter string into a regexp, e.g. "*.txt; *.cf" becomes  .*\.txt|.*\.cf
-		$self->{ARGS}{FILTER} =~ s/\./\\./g;
-		$self->{ARGS}{FILTER} =~ s/\*/.*/g;
-		$self->{ARGS}{FILTER} =~ s/[,;] */|/g;
+	$self->{FILES} = [];
+	bless ($self, $class);
+	
+	# remove trailing slash unless user has supplied the root directory
+	if ( ! _isRootDir( $self->{ARGS}{DIR} ) ) {
+		$self->{ARGS}{DIR} =~ s|[\\\/]$||;
 	}
 	
-	$self->{FILES} = [];
-	$self->{CURRENT} = -1;
-	bless ($self, $class);
-	$self->_getFiles( $self->{ARGS}{DIR} );
+	$self->_probeDir( $self->{ARGS}{DIR} );
 	return $self;
 }
 
-sub _getFiles {
-	my $self = shift;
-	my $dir = shift;
-	my $file;
-	local *DIR;
-	
-	if (opendir(DIR, $dir)) {
-		while (defined ($file = readdir(DIR))) {
-			next if $file =~ /^\.\.?$/;
-			if ( -d "$dir/$file" && $self->{ARGS}{RECURSE} ) {
-				$self->_getFiles("$dir/$file");
-			}
-			elsif ( -f "$dir/$file" ) {
-				if ( $self->{ARGS}{FILTER} && $file !~ /^$self->{ARGS}{FILTER}$/o ) {
-					next;
-				}
-				else {
-					push @{$self->{FILES}}, "$dir/$file";
-				}
-			}
-		}
-		closedir DIR or carp "On closing $dir: $!";
-	}
-	else {
-		carp "On opening $dir: $!";
-	}
+sub _isRootDir {
+	$_[0] =~ m{^(([a-z]:)?[\\\/]|\\\\)$}i; # true if arg is /, \, X:\, X:/ or \\
 }
 
-sub hasNext {
+sub _probeDir {
 	my $self = shift;
-	return $self->{CURRENT} < scalar @{$self->{FILES}} - 1;
+	my $dir = shift;
+	my $slash = _isRootDir($dir) ? "" : $^O =~ /Win/i ? "\\" : "/";
+
+	if (opendir DIR, $dir) {
+		my @files = grep { !/^\.{1,2}$/ } readdir DIR; # ignore . and ..
+		if ( ref($self->{ARGS}{FILTER}) eq 'CODE' ) {
+			@files = grep { &{ $self->{ARGS}{FILTER} }($dir.$slash.$_) || -d $dir.$slash.$_ } @files;
+		}
+		unshift @{$self->{FILES}}, map $dir.$slash.$_, sort { lc $a cmp lc $b } @files;
+		closedir DIR;
+	}
+	else {
+		carp "Can't open $dir: $!";
+	}
 }
 
 sub next {
 	my $self = shift;
-	return $self->{FILES}[++$self->{CURRENT}];
+	my $nextfile = shift @{$self->{FILES}} or return undef;
+	if (-d $nextfile) {
+		
+		# if we are recursing and either the directory is not a symlink or we're following symlinks...
+		if ( $self->{ARGS}{RECURSE} && (!-l $nextfile || $self->{ARGS}{FOLLOWSYMLINKS} ) ) { 
+			$self->_probeDir($nextfile);
+		}
+		
+		if ($self->{ARGS}{RETURNDIRS}) {
+			return $nextfile;
+		}
+		else {
+			return $self->next();
+		}
+	}
+	else {
+		return $nextfile;
+	}
 }
 
 sub reset {
 	my $self = shift;
-	$self->{CURRENT} = -1;
+	$self->_probeDir( $self->{ARGS}{DIR} );
 }
 
 1;
@@ -91,44 +97,71 @@ files in a directory tree.
 
 =head1 SYNOPSIS
 
-  use File::Iterator;
+	use File::Iterator;
 
-  $it = new File::Iterator(
-    DIR     => '/etc',
-    RECURSE => 1,
-    FILTER  => '*.cf',
-  );
+	$it = new File::Iterator(
+		DIR     => '/etc',
+		RECURSE => 0,
+		FILTER  => sub { $_[0] =~ /\.cf$/ },
+	);
 
-  while ($it->hasNext()) {
-    $file = $it->next();
-    # do stuff with $file
-  }
+	while ($file = $it->next()) {
+		# do stuff with $file
+	}
 
 =head1 INTRODUCTION
 
 File::Iterator wraps a simple iteration interface around the files in
 a directory or directory tree. It builds a list of filenames, and
-maintains a cursor that points to one particular filename. The user can 
-work through the filenames sequentially by doing stuff with the filename
-that the cursor points to and then advancing the cursor to the next filename
-in the list.
+maintains a cursor that points to one particular filename. The user
+can work through the filenames sequentially by repeatedly doing stuff
+with the next filename that the cursor points to until their are no
+filenames left.
 
 =head1 CONSTRUCTOR
 
 =over 2
 
-=item new( [ DIR => '$somedir' ] [, RECURSE => 0 ] [, FILTER => '*.ext; filename.*' ] )
+=item new( [ DIR => '$somedir' ] [, RECURSE => 0 ] [, FILTER => sub { ... } ] [, RETURNDIRS => 1] [, FOLLOWSYMLINKS => 1] )
 
-The constructor for a File::Iterator object. The root directory for
+The constructor for a File::Iterator object. The starting directory for
 the iteration is specified as shown. If DIR is not specified, the
 current directory is used.
 
 By default, File::Iterator works recursively, and will therefore list
-all files in the root directory and all its subdirectories. To use
-File::Iterator non-recursively, set the RECURSE option to 0.
+all files in the starting directory and all its subdirectories. To use
+File::Iterator non-recursively, set the RECURSE option to 0. Note that
+the module does not follow symbolic links to directories. To override
+this behaviour, set the FOLLOWSYMLINKS option to 1. Be careful though,
+as this can lead to endless iteration if a link points to a directory 
+higher up its own directory tree.
 
-You can also optionally specify a filename filter using the FILTER
-option. Separate multiple filters with ; or , as shown.
+Use the FILTER option to pass in a reference to a function to filter
+the files. Such a function will be passed the filename (including
+path) to filter and should return true if you are interested in that
+file.
+
+	sub config {
+		my $filename = shift;
+		return 1 if $filename =~ /\.(cf|conf)$/; # only look for config files
+	}
+	
+	$it = new File::Iterator(
+		DIR => "/etc",
+		FILTER => \&config,
+	);
+	
+	# or simply...
+	
+	$it = new File::Iterator(
+		DIR => "/etc",
+		FILTER => sub { $_[0] =~ /\.(cf|conf)$/ },
+	);
+
+By default, the module only return names of files and not names of
+directories (although the module will still search subdirectories if
+the RECURSE option is on). To return directory names as well as file names,
+set the RETURNDIRS option to 1.
 
 =back
 
@@ -136,25 +169,20 @@ option. Separate multiple filters with ; or , as shown.
 
 =over 2
 
-=item hasNext()
-
-Evaluates to true while there are more files to process.
-
 =item next()
 
-Returns the name of the next file (including the path) and advances
-the cursor to the next filename. Note that because next() advances the
-cursor, the following code will produce erroneous results, because the 
-two calls to next() return different values:
+Returns the name of the next file (including the path), or undef if
+there are no more files to process. Note that because next() advances
+the cursor, the following code will produce erroneous results, because
+the two calls to next() return different values:
 
-	while ($it->hasNext()) {
+	while ($it->next()) {
 		push @textfiles, $it->next() if -T $it->next();
 	}
 
 What you wanted to write was:
 	
-	while ($it->hasNext()) {
-		$file = $it->next();
+	while ($file = $it->next()) {
 		push @textfiles, $file if -T $file;
 	}
 
@@ -167,7 +195,12 @@ file in the list.
 
 =head1 ACKNOWLEDGEMENTS
 
-Thanks to Marius Feraru for reminding me to use /o 
+Marius Feraru provided valuable input in the module's early days.
+
+Jamie O'Shaughnessy E<lt>jos@cpan.org E<gt> was responsible for the
+reworking of the FILTER option in 0.07, gave some good advice
+about avoiding unnecessary recursion, and has given lots of other
+tips along the way.
 
 =head1 AUTHOR
 

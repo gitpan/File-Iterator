@@ -1,6 +1,10 @@
 File::Iterator
 ==============
 
+** IMPORTANT NOTE ** 
+v0.07 introduced some major, non-backwards compatible changes. Please
+read the POD documentation for new instructions on use.
+
 INTRODUCTION
 
 File::Iterator is an object-oriented Perl module for iterating across
@@ -11,8 +15,7 @@ SYNOPSIS
 use File::Iterator;
 $it = new File::Iterator( DIR => "/etc" );
 
-while ($it->hasNext()) {
-	$file = $it->next();
+while ($file = $it->next()) {
 	# do stuff with $file
 }
 
