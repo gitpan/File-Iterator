@@ -5,7 +5,7 @@ use strict;
 use Carp;
 use vars qw($VERSION);
 
-$VERSION = '0.10';
+$VERSION = '0.11';
 
 sub new {
 	my $proto = shift;
@@ -39,7 +39,7 @@ sub _isRootDir {
 sub _probeDir {
 	my $self = shift;
 	my $dir = shift;
-	my $slash = _isRootDir($dir) ? "" : $^O =~ /(?<!dar)win/i ? "\\" : "/";
+	my $slash = _isRootDir($dir) ? "" : $^O eq "MSWin32" ? "\\" : "/";
 
 	if (opendir DIR, $dir) {
 		my @files = grep { !/^\.{1,2}$/ } readdir DIR; # ignore . and ..
