@@ -1,10 +1,6 @@
 File::Iterator
 ==============
 
-** IMPORTANT NOTE ** 
-v0.07 introduced some major, non-backwards compatible changes. Please
-read the POD documentation for new instructions on use.
-
 INTRODUCTION
 
 File::Iterator is an object-oriented Perl module for iterating across
@@ -28,10 +24,14 @@ To install this module type the following:
    make test
    make install
    
+PLEASE NOTE
+
+v0.07 introduced some major, non-backwards compatible changes. Please
+read the POD documentation for new instructions on use.
+
 COPYRIGHT AND LICENCE
 
 Copyright (C) 2002 Simon Whitaker
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 
-

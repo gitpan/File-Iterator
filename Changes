@@ -34,3 +34,7 @@ Revision history for Perl extension File::Iterator.
 0.09  4/xii/2002
 	- removed redundant Exporter stuff
 
+0.10  24/i/2003
+	- fixed bug in reset() method
+	
+

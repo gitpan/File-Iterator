@@ -5,7 +5,7 @@ use strict;
 use Carp;
 use vars qw($VERSION);
 
-$VERSION = '0.09';
+$VERSION = '0.10';
 
 sub new {
 	my $proto = shift;
@@ -78,6 +78,7 @@ sub next {
 
 sub reset {
 	my $self = shift;
+	$self->{FILES} = [];
 	$self->_probeDir( $self->{ARGS}{DIR} );
 }
 
@@ -107,7 +108,7 @@ files in a directory tree.
 
 File::Iterator wraps a simple iteration interface around the files in
 a directory or directory tree. It builds a list of filenames, and
-maintains a cursor that points to one particular filename. The user
+maintains a cursor that points to one filename in the list. The user
 can work through the filenames sequentially by repeatedly doing stuff
 with the next filename that the cursor points to until their are no
 filenames left.
@@ -152,10 +153,10 @@ file.
 		FILTER => sub { $_[0] =~ /\.(cf|conf)$/ },
 	);
 
-By default, the module only return names of files and not names of
-directories (although the module will still search subdirectories if
-the RECURSE option is on). To return directory names as well as file names,
-set the RETURNDIRS option to 1.
+By default, the module only returns filenames and not directory names
+(although the module will still search subdirectories if the RECURSE
+option is on). To return directory names as well as filenames, set
+the RETURNDIRS option to 1.
 
 =back
 
@@ -165,10 +166,11 @@ set the RETURNDIRS option to 1.
 
 =item next()
 
-Returns the name of the next file (including the path), or undef if
-there are no more files to process. Note that because next() advances
-the cursor, the following code will produce erroneous results, because
-the two calls to next() return different values:
+Returns the name of the next file (including the path) then advances
+the cursor, or returns undef if there are no more files to process.
+Note that because next() advances the cursor, the following code will
+produce erroneous results, because the two calls to next() return
+different values:
 
 	while ($it->next()) {
 		push @textfiles, $it->next() if -T $it->next();
@@ -192,9 +194,11 @@ file in the list.
 Marius Feraru provided valuable input in the module's early days.
 
 Jamie O'Shaughnessy E<lt>jos@cpan.org E<gt> was responsible for the
-reworking of the FILTER option in 0.07, gave some good advice
-about avoiding unnecessary recursion, and has given lots of other
-tips along the way.
+reworking of the FILTER option in 0.07 and gave some good advice
+about avoiding unnecessary recursion.
+
+Paul Hoffman spotted that the test on $^O in versions pre-0.08 would 
+recognise Darwin as a Windows OS. He probably saved my life. :-)
 
 =head1 AUTHOR
 
