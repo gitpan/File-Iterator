@@ -5,7 +5,7 @@ use strict;
 use Carp;
 use vars qw($VERSION);
 
-$VERSION = '0.11';
+$VERSION = '0.12';
 
 sub new {
 	my $proto = shift;
@@ -25,7 +25,15 @@ sub new {
 	
 	# remove trailing slash unless user has supplied the root directory
 	if ( ! _isRootDir( $self->{ARGS}{DIR} ) ) {
-		$self->{ARGS}{DIR} =~ s|[\\\/]$||;
+		if ( $^O eq "MSWin32" || $^O eq "os2") { # trailing slash can be either / or \
+			$self->{ARGS}{DIR} =~ s|[\\/]$||;
+		}
+		elsif ( $^O eq "NetWare" ) { # uses \ as directory separator
+			$self->{ARGS}{DIR} =~ s|\\$||;
+		}
+		else {
+			$self->{ARGS}{DIR} =~ s|/$||;
+		}
 	}
 	
 	$self->_probeDir( $self->{ARGS}{DIR} );
@@ -33,17 +41,18 @@ sub new {
 }
 
 sub _isRootDir {
-	$_[0] =~ m{^(([a-z]:)?[\\\/]|\\\\)$}i; # true if arg is /, \, X:\, X:/ or \\
+	$_[0] =~ m{^(([a-z]:)?[\\/]|\\\\)$}i; # true if arg is /, \, X:\, X:/ or \\
 }
 
 sub _probeDir {
 	my $self = shift;
 	my $dir = shift;
-	my $slash = _isRootDir($dir) ? "" : $^O eq "MSWin32" ? "\\" : "/";
+	my $slash = _isRootDir($dir) ? "" : ( $^O eq "MSWin32" || $^O eq "NetWare" || $^O eq "os2" ) ? "\\" : "/";
 
 	if (opendir DIR, $dir) {
 		my @files = grep { !/^\.{1,2}$/ } readdir DIR; # ignore . and ..
 		if ( ref($self->{ARGS}{FILTER}) eq 'CODE' ) {
+			# include files that match filter code, plus directories
 			@files = grep { &{ $self->{ARGS}{FILTER} }($dir.$slash.$_) || -d $dir.$slash.$_ } @files;
 		}
 		unshift @{$self->{FILES}}, map $dir.$slash.$_, sort { lc $a cmp lc $b } @files;
@@ -143,15 +152,25 @@ file.
 	
 	$it = new File::Iterator(
 		DIR => "/etc",
-		FILTER => \&config,
+		FILTER => \&config
 	);
 	
 	# or simply...
 	
 	$it = new File::Iterator(
 		DIR => "/etc",
-		FILTER => sub { $_[0] =~ /\.(cf|conf)$/ },
+		FILTER => sub { $_[0] =~ /\.(cf|conf)$/ }
 	);
+
+Don't try to use the FILTER option to exclude subdirectories. This
+won't work:
+
+	$it = new File::Iterator(
+		DIR => "/etc",
+		FILTER => sub { ! -d $_[0] }
+	);
+
+Set the RECURSE option to 0 instead.
 
 By default, the module only returns filenames and not directory names
 (although the module will still search subdirectories if the RECURSE
