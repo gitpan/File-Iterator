@@ -11,12 +11,12 @@ require Exporter;
 %EXPORT_TAGS  = ( 'all' => [ qw() ] );
 @EXPORT_OK    = ( @{ $EXPORT_TAGS{'all'} } );
 @EXPORT       = qw( );
-$VERSION      = '0.04';
+$VERSION      = '0.05';
 
 sub new {
-	my $proto			= shift;
-	my $class			= ref($proto) || $proto;
-	my $self			= {};
+	my $proto = shift;
+	my $class = ref($proto) || $proto;
+	my $self = {};
 	$self->{ARGS} = {
 		DIR		=> '.',
 		RECURSE	=> 1,
@@ -30,16 +30,16 @@ sub new {
 	$self->{ARGS}{FILTER} =~ s/[,;] */|/g;
 	$self->{ARGS}{FILTER} = '(' . $self->{ARGS}{FILTER} . ')';
 	
-	$self->{FILES} 		= [];
-	$self->{CURRENT}	= -1;
+	$self->{FILES} = [];
+	$self->{CURRENT} = -1;
 	bless ($self, $class);
 	$self->_getFiles( $self->{ARGS}{DIR} );
 	return $self;
 }
 
 sub _getFiles {
-	my $self	= shift;
-	my $dir		= shift;
+	my $self = shift;
+	my $dir = shift;
 	my $file;
 	local *DIR;
 	
@@ -101,7 +101,11 @@ files in a directory tree.
 =head1 INTRODUCTION
 
 File::Iterator wraps a simple iteration interface around the files in
-a directory or directory tree tree.
+a directory or directory tree. It builds a list of filenames, and
+maintains a cursor that points to one particular filename. The user can 
+work through the filenames sequentially by doing stuff with the filename
+that the cursor points to and then advancing the cursor to the next filename
+in the list.
 
 =head1 CONSTRUCTOR
 
@@ -132,7 +136,21 @@ Evaluates to true while there are more files to process.
 
 =item next()
 
-Returns the next file name.
+Returns the name of the next file (including the path) and advances
+the cursor to the next filename. Note that because next() advances the
+cursor, the following code will produce erroneous results, because the 
+two calls to next() return different values:
+
+	while ($it->hasNext()) {
+		push @textfiles, $it->next() if -T $it->next();
+	}
+
+What you wanted to write was:
+	
+	while ($it->hasNext()) {
+		$file = $it->next();
+		push @textfiles, $file if -T $file;
+	}
 
 =item reset()
 
