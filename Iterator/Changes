@@ -1,0 +1,12 @@
+Revision history for Perl extension File::Iterator.
+
+0.01  Sat Jul  6 18:53:52 2002
+	- original version; created by h2xs 1.21 with options
+		-AX -n File::Iterator
+
+0.02  6/7/02
+    - added reset()
+    
+0.03  7/7/02
+    - added support for multiple filename filters
+    - resolved bug with directory recursion
