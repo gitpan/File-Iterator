@@ -11,7 +11,7 @@ require Exporter;
 %EXPORT_TAGS  = ( 'all' => [ qw() ] );
 @EXPORT_OK    = ( @{ $EXPORT_TAGS{'all'} } );
 @EXPORT       = qw( );
-$VERSION      = '0.05';
+$VERSION      = '0.06';
 
 sub new {
 	my $proto = shift;
@@ -20,15 +20,16 @@ sub new {
 	$self->{ARGS} = {
 		DIR		=> '.',
 		RECURSE	=> 1,
-		FILTER	=> '*',
+		FILTER	=> '',
 		@_
 	};
 	
-	# convert file filter string into a regexp, e.g. "*.txt; *.cf" -> (.*\.txt|.*\.cf)
-	$self->{ARGS}{FILTER} =~ s/\./\\./g;
-	$self->{ARGS}{FILTER} =~ s/\*/.*/g;
-	$self->{ARGS}{FILTER} =~ s/[,;] */|/g;
-	$self->{ARGS}{FILTER} = '(' . $self->{ARGS}{FILTER} . ')';
+	if ($self->{ARGS}{FILTER}) {
+		# convert file filter string into a regexp, e.g. "*.txt; *.cf" becomes  .*\.txt|.*\.cf
+		$self->{ARGS}{FILTER} =~ s/\./\\./g;
+		$self->{ARGS}{FILTER} =~ s/\*/.*/g;
+		$self->{ARGS}{FILTER} =~ s/[,;] */|/g;
+	}
 	
 	$self->{FILES} = [];
 	$self->{CURRENT} = -1;
@@ -49,8 +50,13 @@ sub _getFiles {
 			if ( -d "$dir/$file" && $self->{ARGS}{RECURSE} ) {
 				$self->_getFiles("$dir/$file");
 			}
-			elsif ( -f "$dir/$file" && $file =~ /^$self->{ARGS}{FILTER}$/ ) {
-				push @{$self->{FILES}}, "$dir/$file";
+			elsif ( -f "$dir/$file" ) {
+				if ( $self->{ARGS}{FILTER} && $file !~ /^$self->{ARGS}{FILTER}$/o ) {
+					next;
+				}
+				else {
+					push @{$self->{FILES}}, "$dir/$file";
+				}
 			}
 		}
 		closedir DIR or carp "On closing $dir: $!";
@@ -158,6 +164,10 @@ Resets the iterator so that the next call to next() returns the first
 file in the list.
 
 =back
+
+=head1 ACKNOWLEDGEMENTS
+
+Thanks to Marius Feraru for reminding me to use /o 
 
 =head1 AUTHOR
 

@@ -16,3 +16,6 @@ Revision history for Perl extension File::Iterator.
 
 0.05  1/viii/2002
     - updates to POD documentation
+
+0.06  20/viii/2002
+    - minor amendments to _getFiles()
