@@ -2,7 +2,7 @@ package File::Iterator;
 
 use 5.005;
 use strict;
-use Carp; # see perlnewmod for reasons
+use Carp;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
 require Exporter;
@@ -11,7 +11,7 @@ require Exporter;
 %EXPORT_TAGS  = ( 'all' => [ qw() ] );
 @EXPORT_OK    = ( @{ $EXPORT_TAGS{'all'} } );
 @EXPORT       = qw( );
-$VERSION      = '0.03';
+$VERSION      = '0.04';
 
 sub new {
 	my $proto			= shift;
@@ -43,17 +43,21 @@ sub _getFiles {
 	my $file;
 	local *DIR;
 	
-	opendir(DIR, $dir) or croak "On opening $dir: $!";
-	while (defined ($file = readdir(DIR))) {
-		next if $file =~ /^\.\.?$/;
-		if ( -d "$dir/$file" && $self->{ARGS}{RECURSE} ) {
-			$self->_getFiles("$dir/$file");
+	if (opendir(DIR, $dir)) {
+		while (defined ($file = readdir(DIR))) {
+			next if $file =~ /^\.\.?$/;
+			if ( -d "$dir/$file" && $self->{ARGS}{RECURSE} ) {
+				$self->_getFiles("$dir/$file");
+			}
+			elsif ( -f "$dir/$file" && $file =~ /^$self->{ARGS}{FILTER}$/ ) {
+				push @{$self->{FILES}}, "$dir/$file";
+			}
 		}
-		elsif ( -f "$dir/$file" && $file =~ /^$self->{ARGS}{FILTER}$/ ) {
-			push @{$self->{FILES}}, "$dir/$file";
-		}
+		closedir DIR or carp "On closing $dir: $!";
 	}
-	closedir DIR or croak "On closing $dir: $!";
+	else {
+		carp "On opening $dir: $!";
+	}
 }
 
 sub hasNext {
