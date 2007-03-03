@@ -5,13 +5,12 @@ use strict;
 use Carp;
 use vars qw($VERSION);
 
-$VERSION = '0.12';
+$VERSION = '0.13';
 
 sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
-	my $self = {};
-	$self->{ARGS} = {
+	my $self = {
 		DIR				=> '.',
 		RECURSE			=> 1,
 		FILTER			=> undef,
@@ -24,19 +23,19 @@ sub new {
 	bless ($self, $class);
 	
 	# remove trailing slash unless user has supplied the root directory
-	if ( ! _isRootDir( $self->{ARGS}{DIR} ) ) {
+	if ( ! _isRootDir( $self->{DIR} ) ) {
 		if ( $^O eq "MSWin32" || $^O eq "os2") { # trailing slash can be either / or \
-			$self->{ARGS}{DIR} =~ s|[\\/]$||;
+			$self->{DIR} =~ s|[\\/]$||;
 		}
 		elsif ( $^O eq "NetWare" ) { # uses \ as directory separator
-			$self->{ARGS}{DIR} =~ s|\\$||;
+			$self->{DIR} =~ s|\\$||;
 		}
 		else {
-			$self->{ARGS}{DIR} =~ s|/$||;
+			$self->{DIR} =~ s|/$||;
 		}
 	}
 	
-	$self->_probeDir( $self->{ARGS}{DIR} );
+	$self->_probeDir( $self->{DIR} );
 	return $self;
 }
 
@@ -51,10 +50,6 @@ sub _probeDir {
 
 	if (opendir DIR, $dir) {
 		my @files = grep { !/^\.{1,2}$/ } readdir DIR; # ignore . and ..
-		if ( ref($self->{ARGS}{FILTER}) eq 'CODE' ) {
-			# include files that match filter code, plus directories
-			@files = grep { &{ $self->{ARGS}{FILTER} }($dir.$slash.$_) || -d $dir.$slash.$_ } @files;
-		}
 		unshift @{$self->{FILES}}, map $dir.$slash.$_, sort { lc $a cmp lc $b } @files;
 		closedir DIR;
 	}
@@ -67,18 +62,19 @@ sub next {
 	my $self = shift;
 	my $nextfile = shift @{$self->{FILES}} or return undef;
 	if (-d $nextfile) {
-		
 		# if we are recursing and either the directory is not a symlink or we're following symlinks...
-		if ( $self->{ARGS}{RECURSE} && (!-l $nextfile || $self->{ARGS}{FOLLOWSYMLINKS} ) ) { 
+		if ( $self->{RECURSE} && (!-l $nextfile || $self->{FOLLOWSYMLINKS} ) ) { 
 			$self->_probeDir($nextfile);
 		}
 		
-		if ($self->{ARGS}{RETURNDIRS}) {
-			return $nextfile;
-		}
-		else {
+		if (!$self->{RETURNDIRS}) {
 			return $self->next();
 		}
+	}
+
+	my $filter = $self->{FILTER};
+	if ( $filter && !($filter->($nextfile)) ) {
+		return $self->next();
 	}
 	else {
 		return $nextfile;
@@ -88,7 +84,7 @@ sub next {
 sub reset {
 	my $self = shift;
 	$self->{FILES} = [];
-	$self->_probeDir( $self->{ARGS}{DIR} );
+	$self->_probeDir( $self->{DIR} );
 }
 
 1;

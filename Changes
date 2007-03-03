@@ -40,3 +40,6 @@ Revision history for Perl extension File::Iterator.
 0.11  28/i/2003
 	- further tweaks to the $^O line to make it Cygwin safe. What
 	  *was* I thinking...?
+
+0.13  3/iii/2007
+    - moved filter check into next()
