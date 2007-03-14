@@ -43,3 +43,6 @@ Revision history for Perl extension File::Iterator.
 
 0.13  3/iii/2007
     - moved filter check into next()
+
+0.14  13/iii/2007
+    - added LICENSE
